@@ -1,4 +1,4 @@
-#!/usr/env/bin python
+#!/usr/bin/env python3
 import requests
 import json
 from argparse import ArgumentParser
@@ -8,8 +8,8 @@ from sys import exit
 
 GITHUB_API_URL = "https://api.github.com/"
 GITHUB_REPOS_URL = f"{GITHUB_API_URL}repos"
-
 GITHUB_API_VERSION={"Accept": "application/vnd.github.v3+json"}
+
 
 def import_labels(repo_url, file_name, user, passwd):
     headers = {
@@ -17,14 +17,17 @@ def import_labels(repo_url, file_name, user, passwd):
         **GITHUB_API_VERSION
     }
     errors = []
+    labels = []
     with open(file_name) as f:
         for label in f:
+            label_dict = json.loads(label)
+            labels.append(label_dict['name'])
             response = requests.post(f"{GITHUB_REPOS_URL}/{repo_url}/labels",
                                      headers=headers, data=label, auth=(user, passwd))
             try:
                 response.raise_for_status()
-            except (ValueError, requests.exceptions.HTTPError):
-                errors.append(label['name'])
+            except requests.exceptions.HTTPError:
+                errors.append(label_dict['name'])
     
     if errors:
         num_errors = len(errors)
@@ -32,16 +35,31 @@ def import_labels(repo_url, file_name, user, passwd):
         if num_errors == num_labels:
             print("All labels creation failed")
             exit(1)
-        print(f"{len(errors)} out of {len(labels)} failed. Labels which failed: ")
-        for e in errors:
-            print(e)
+        print(f"{num_errors} out of {num_labels} failed. Labels which failed: ", errors)
     else:
         print("All labels imported successfully")
 
+
 def clean(repo_url, user, passwd):
     existing_labels = export(repo_url)
+    errors = []
     for label in existing_labels:
-        requests.delete(f"{GITHUB_REPOS_URL}/{repo_url}/labels/{label['name']}", auth=(user, passwd))
+        response = requests.delete(f"{GITHUB_REPOS_URL}/{repo_url}/labels/{label['name']}", auth=(user, passwd))
+        try:
+            response.raise_for_status()
+        except requests.exceptions.HTTPError:
+            errors.append(label['name'])
+    
+    if errors:
+        num_errors = len(errors)
+        num_labels = len(existing_labels)
+        if num_errors == num_labels:
+            print("Labels clean failed")
+            exit(1)
+        print(f"{len(errors)} out of {len(labels)} failed. Labels which failed: ", errors)
+    else:
+        print("All labels were deleted successfully") 
+
 
 def export(repo_url, file_name='', display=False):
     response = requests.get(f"{GITHUB_REPOS_URL}/{repo_url}/labels",
@@ -61,18 +79,18 @@ def export(repo_url, file_name='', display=False):
     except KeyError:
         print('Invalid response')
         exit(1)
-    if isfile(file_name):
-        anw = strtobool(input('File already exists, do you want to overwrite it? (y|n): '))
-    if not anw:
-        print('Aborting...')
-        exit(1)
         
     if not file_name:
         if display:
-            print(labels)
+            print(list(labels))
             return None
         else:
             return labels
+
+    if isfile(file_name):
+        if not strtobool(input('File already exists, do you want to overwrite it? [y|n]: ')):
+            print('Aborting...')
+            exit(1)
 
     with open(file_name, "w") as f:
         for label in labels:
@@ -83,7 +101,9 @@ if __name__ == "__main__":
 
     # Define arguments
     parser = ArgumentParser(description='Export and import issue labels from Github repositories')
-    subparsers = parser.add_subparsers(help='actions', dest='action')
+    subparsers = parser.add_subparsers(help='Available actions to apply on the repository', dest='action')
+    # This is needed because of a known issue in certain version of Python which won't allow require in add_suparsers
+    subparsers.required = True
 
     # Subparser for export
     parser_export = subparsers.add_parser('export', description='export issue labels')
@@ -102,9 +122,12 @@ if __name__ == "__main__":
     parser_import.add_argument('-u', metavar='USER', required=True, help='Github account user', dest='user')
     parser_import.add_argument('-p', metavar='PASSWORD', required=True, help='Github account passowrd', dest='passwd')
     parser_import.add_argument('-i', metavar='FILE', required=True, help='JSON file for importing labels', dest='file')
-    
 
-    args = parser.parse_args()
+    try:
+        args = parser.parse_args()
+    except:
+        parser.print_help()
+        exit(0)
 
     if args.action == 'export':
         export(args.repository, args.file, display=True)
@@ -113,4 +136,4 @@ if __name__ == "__main__":
     elif args.action == 'clean':
         clean(args.repository, args.user, args.passwd)
     
-    print("Task completed")
+    print("\nTask completed")
