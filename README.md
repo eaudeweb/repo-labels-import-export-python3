@@ -31,4 +31,4 @@ For this command all the params are required: the repository, an input file give
 ### clean
 
 The **clean** command will retrieve the list of all the existing labels for the specified repository and will request a delete for each of them. Same as **import**, it will display if all labels were deleted and if not, how many and which labels were not deleted.
-For this command all the params are required: the repository, Github user given with `-u` and Github password with `-p`. It is required that the Github account provided will have permissions to delete labels in the given repository. Example: `clean torvalds/linux -u torvalds -p pass`. Use `clean -h` for help.
+For this command all the params are required: the repository, Github user given with `-u` and Github password with `-p`. It is required that the Github account provided will have permissions to delete labels in the given repository. Example: `clean torvalds/linux -u torvalds -p pass`. Use `clean -h` for help. 
