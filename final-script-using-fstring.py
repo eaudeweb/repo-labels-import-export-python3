@@ -6,8 +6,8 @@ from distutils.util import strtobool
 from os.path import isfile
 from sys import exit
 
-GITHUB_API_URL = "https://api.github.com/"
-GITHUB_REPOS_URL = f"{GITHUB_API_URL}repos"
+GITHUB_API_URL = "https://api.github.com"
+GITHUB_REPOS_URL = f"{GITHUB_API_URL}/repos"
 GITHUB_API_VERSION={"Accept": "application/vnd.github.v3+json"}
 
 
@@ -17,7 +17,6 @@ def import_labels(repo_url, file_name, user, passwd):
         **GITHUB_API_VERSION
     }
     errors = []
-    labels = []
     with open(file_name) as f:
         try:
             labels = json.load(f)
@@ -25,14 +24,12 @@ def import_labels(repo_url, file_name, user, passwd):
             print("File is not a valid JSON")
             exit(1)
     for label in labels:
-            # label_dict = json.loads(label)
-            # labels.append(label_dict['name'])
-            response = requests.post(f"{GITHUB_REPOS_URL}/{repo_url}/labels",
-                                     headers=headers, data=label, auth=(user, passwd))
-            try:
-                response.raise_for_status()
-            except requests.exceptions.HTTPError:
-                errors.append(label['name'])
+        response = requests.post(f"{GITHUB_REPOS_URL}/{repo_url}/labels",
+                                 headers=headers, json=label, auth=(user, passwd))
+        try:
+            response.raise_for_status()
+        except requests.exceptions.HTTPError:
+            errors.append(label['name'])
     
     if errors:
         num_errors = len(errors)
@@ -49,7 +46,8 @@ def clean(repo_url, user, passwd):
     existing_labels = export(repo_url)
     errors = []
     for label in existing_labels:
-        response = requests.delete(f"{GITHUB_REPOS_URL}/{repo_url}/labels/{label['name']}", auth=(user, passwd))
+        response = requests.delete(f"{GITHUB_REPOS_URL}/{repo_url}/labels/{label['name']}",
+                                   auth=(user, passwd))
         try:
             response.raise_for_status()
         except requests.exceptions.HTTPError:
@@ -61,7 +59,7 @@ def clean(repo_url, user, passwd):
         if num_errors == num_labels:
             print("Labels clean failed")
             exit(1)
-        print(f"{len(errors)} out of {len(labels)} failed. Labels which failed: ", errors)
+        print(f"{num_errors} out of {num_labels} failed. Labels which failed: ", errors)
     else:
         print("All labels were deleted successfully") 
 
@@ -98,7 +96,7 @@ def export(repo_url, file_name='', display=False):
             exit(1)
 
     with open(file_name, "w") as f:
-        json.dump(list(labels), f, indent=2, sort_keys=True)
+         json.dump(list(labels), f, indent=2, sort_keys=True)
     
 
 if __name__ == "__main__":
